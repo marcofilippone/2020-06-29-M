@@ -6,7 +6,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
 import it.polito.tdp.imdb.model.Actor;
+import it.polito.tdp.imdb.model.Adiacenza;
 import it.polito.tdp.imdb.model.Director;
 import it.polito.tdp.imdb.model.Movie;
 
@@ -85,7 +88,54 @@ public class ImdbDAO {
 	}
 	
 	
+	public void getVertici(int anno, Map<Integer, Director> idMap) {
+		String sql = "SELECT DISTINCT(d.id) AS id, d.first_name, d.last_name "
+				+ "FROM directors d, movies_directors md, movies m "
+				+ "WHERE md.movie_id=m.id AND md.director_id=d.id AND m.year=?";
+		Connection conn = DBConnect.getConnection();
+
+		try {
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setInt(1, anno);
+			ResultSet res = st.executeQuery();
+			while (res.next()) {
+				if(!idMap.containsKey(res.getInt("id"))) {
+					Director director = new Director(res.getInt("id"), res.getString("d.first_name"), res.getString("d.last_name"));
+					idMap.put(res.getInt("id"), director);
+				}
+			}
+			conn.close();
+			
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
 	
+	public List<Adiacenza> getArchi(int anno, Map<Integer, Director> idMap){
+		String sql = "SELECT md.director_id AS d1, md2.director_id AS d2, COUNT(DISTINCT r.actor_id) AS peso "
+				+ "FROM roles r, movies_directors md, movies m, roles r2, movies_directors md2, movies m2 "
+				+ "WHERE md.movie_id=m.id AND m.id=r.movie_id AND m2.id=r2.movie_id AND m2.id=md2.movie_id AND m.year=? AND m2.year=m.year "
+				+ "AND md.director_id > md2.director_id AND r.actor_id=r2.actor_id "
+				+ "GROUP BY md.director_id, md2.director_id";
+		List<Adiacenza> result = new ArrayList<>();
+		Connection conn = DBConnect.getConnection();
+
+		try {
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setInt(1, anno);
+			ResultSet res = st.executeQuery();
+			while (res.next()) {
+				
+			result.add(new Adiacenza(idMap.get(res.getInt("d1")), idMap.get(res.getInt("d2")), res.getInt("peso")));
+			}
+			conn.close();
+			return result;
+			
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
 	
 	
 	
